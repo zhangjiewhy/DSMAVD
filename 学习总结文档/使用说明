@@ -1,0 +1,285 @@
+重新安装MMYOLO: mim install -v -e .
+特征图可视化的库pytorch-grad-cam：安装命令为pip install grad-cam
+一、训练与测试
+```shell
+CUDA_VISIBLE_DEVICES=3 python ./tools/train.py ${CONFIG} #train
+CUDA_VISIBLE_DEVICES=3 python ./tools/test.py ${CONFIG} ${CHECKPOINT_FILE} #test
+```
+训练：CUDA_VISIBLE_DEVICES=1   python ./tools/train.py configs/RGBT/yolov8_s_syncbn_fast_8xb16-500e_RGB.py
+测试：(val与test不同，需要在配置文件中修改test_dataloader、test_evaluator)
+CUDA_VISIBLE_DEVICES=3   python ./tools/test.py \
+configs/RGBT/yolov8_s_syncbn_fast_8xb16-500e_RGB.py \
+work_dirs/yolov8_s_syncbn_fast_8xb16-500e_RGB/best_coco_bbox_mAP_epoch_26.pth
+
+二、改写RGBT
+1、数据集配置文件
+  不用注册新的数据集，直接使用dataset_type = 'YOLOv5CocoDataset',修改配置文件中的
+ (1) class_name = ('Armored_Vehicle', )
+     metainfo = dict(classes=class_name, palette=[(20, 220, 60)])
+ (2)train_dataloader\val_dataloader\test_dataloader的
+    dataset[metainfo,
+           data_prefix=dict(img=train_data_prefix,
+                            img_i=train_data_prefix_i)
+           ]
+2、新写了检测器文件：/home/new/PycharmProjects/mmyolo/mmyolo/models/detectors/RGBT_detector.py
+  配置文件中model的type='RGBTDetector',
+  RGBT_detector.py中
+  训练方法:
+  def _forward(）
+  def extract_feat()
+
+d:double    s:signal
+
+unexpected key in source state_dict  预训练权重文件中有，模型中没有
+missing keys in source state_dict    预训练权重文件中没有，模型中有
+
+查看：taskset -p  pid
+绑核：taskset -p 掩码（16进制，由2进制换算来） pid
+nvidia-smi  -l    gpustat
+sudo shutdown -h  +150
+
+
+taskset -p  1
+taskset -p  2     7668
+taskset -p  4     7700
+taskset -p  8     7710
+taskset -p  10    7720
+taskset -p  10    7786
+
+taskset -p  20    7730
+taskset -p  40    12777
+taskset -p  80    12787
+taskset -p  100   12797
+
+taskset -p  200   12859
+
+eps = torch.finfo(torch.float32).eps
+
+YOLOV8_S_RGB:(fps:49.8)
+CUDA_VISIBLE_DEVICES=0,1 ./tools/dist_train.sh  configs/ATAV4/yolov8/yolov8_n_syncbn_fast_8xb16-500e_RGB.py  2  --work-dir work_dirs/ATAV4_11_16/YOLOV8_n/ATAV4_rgb_E500_lr001  --amp
+CUDA_VISIBLE_DEVICES=0,1 ./tools/dist_train.sh  configs/ATAV4/yolov8/yolov8_s_syncbn_fast_8xb16-500e_RGB.py  2  --work-dir work_dirs/ATAV4_11_16/YOLOV8_S/ATAV4_rgb_E500_LR001  --amp
+计算推理速度：CUDA_VISIBLE_DEVICES=2  mim run mmdet benchmark  configs/ATAV4/yolov8/yolov8_s_syncbn_fast_8xb16-500e_RGB.py  --checkpoint  work_dirs/ATAV4_11_07/YOLOV8_S/rgb_567/best_coco_bbox_mAP_epoch_46.pth
+CUDA_VISIBLE_DEVICES=2  python ./tools/test.py  configs/ATAV4/yolov8/yolov8_s_syncbn_fast_8xb16-500e_RGB.py  work_dirs/good/paper_3/rgb565/best_coco_bbox_mAP_epoch_37.pth \
+--show-dir  rgb565
+
+YOLOV8_S_IR:(fps:49.8)
+CUDA_VISIBLE_DEVICES=0,1 ./tools/dist_train.sh  configs/ATAV4/yolov8/yolo_s_IR.py  2  --work-dir work_dirs/ATAV4_11_02/YOLOV8_S/IR_lr001 --amp
+计算推理速度：CUDA_VISIBLE_DEVICES=2  mim run mmdet benchmark  configs/ATAV4/yolov8/yolo_s_IR.py  --checkpoint  work_dirs/ATAV4_11_02/YOLOV8_S/IR_lr001_251/best_coco_bbox_mAP_epoch_99.pth
+CUDA_VISIBLE_DEVICES=2  python ./tools/test.py  configs/ATAV4/yolov8/yolo_s_IR.py  work_dirs/ATAV4_11_02/YOLOV8_S/IR_lr001_251/best_coco_bbox_mAP_epoch_99.pth \
+--show-dir   IR251
+
+YOLOV8_S_BN_ADD:
+CUDA_VISIBLE_DEVICES=0,1 ./tools/dist_train.sh  configs/ATAV4/yolov8/yolov8_n_syncbn_fast_8xb16-500e_RGBT.py  2  --work-dir work_dirs/ATAV4/BN_ADD_amp  --amp \
+CUDA_VISIBLE_DEVICES=0,1 ./tools/dist_train.sh  configs/ATAV4/yolov8/yolov8_s_syncbn_fast_8xb16-500e_RGBT.py  2  --work-dir work_dirs/ATAV4/BN_ADD  --amp
+计算推理速度(BN_ADD)：CUDA_VISIBLE_DEVICES=2  mim run mmdet benchmark  configs/ATAV4/yolov8/yolov8_s_syncbn_fast_8xb16-500e_RGBT.py  --checkpoint  work_dirs/ATAV4_11_07/YOLOV8_S/bn_add_580/best_coco_bbox_mAP_epoch_54.pth
+计算推理速度(BN_concat)：CUDA_VISIBLE_DEVICES=2  mim run mmdet benchmark  configs/ATAV4/yolov8/yolov8_s_syncbn_fast_8xb16-500e_RGBT.py  --checkpoint  work_dirs/ATAV4_11_02/YOLOV8_S/BN_concat1x1_563/best_coco_bbox_mAP_epoch_39.pth
+CUDA_VISIBLE_DEVICES=2  python ./tools/test.py  configs/ATAV4/yolov8/yolov8_s_syncbn_fast_8xb16-500e_RGBT.py  work_dirs/good/BN_add_lr00025_dcoco571/best_coco_bbox_mAP_epoch_38.pth \
+--show-dir  bn_ADD
+CUDA_VISIBLE_DEVICES=2  python ./tools/test.py  configs/ATAV4/yolov8/yolov8_s_syncbn_fast_8xb16-500e_RGBT.py  work_dirs/good/YOLOV8_S_BN1X1_57/best_coco_bbox_mAP_epoch_47.pth \
+--show-dir  bn_ADD
+
+
+
+CUDA_VISIBLE_DEVICES=0,1 ./tools/dist_train.sh  configs/ATAV4/yolov8_incep_fus/yolov8_s_dcn2.py  2  --work-dir work_dirs/ATAV4_11_16/YOLOV8_S_albation_e500_lr001/FAM_2_NO_CFIM/3 --amp
+CUDA_VISIBLE_DEVICES=0,1 ./tools/dist_train.sh  configs/ATAV4/yolov8_incep_fus/yolov8_s_dcn2_cross_attention.py  2  --work-dir work_dirs/ATAV4_11_16/YOLOV8_S_albation_e500_lr001/ss=2_cs=2 --amp \
+    --cfg-options randomness.seed=1985575514 \
+    [randomness.diff_rank_seed=True] \
+    [randomness.deterministic=True]
+    randomness.diff_rank_seed:     # 根据 rank 来设置不同的种子
+    randomness.deterministic=True:   # 把 cuDNN 后端确定性选项设置
+     [] 代表可选参数，实际输入命令行时，不用输入 []
+CUDA_VISIBLE_DEVICES=0,1 ./tools/dist_train.sh  configs/ATAV4/yolov8_incep_fus/yolov8_s_dcn2_cross_attention_UADET.py  2 \
+ --work-dir work_dirs/ATAV4_11_02/YOLOV8_S/FAM+ADD_LR00025_UADET --amp
+CUDA_VISIBLE_DEVICES=0,1 ./tools/dist_train.sh  configs/ATAV4/yolov8/yolov8_s_syncbn_fast_8xb16-500e_RGB_UADET.py  2 \
+ --work-dir work_dirs/ATAV4_11_02/YOLOV8_S/RGB_UADET --amp
+ CUDA_VISIBLE_DEVICES=0,1 ./tools/dist_train.sh  configs/ATAV4/yolov8/yolov8_s_syncbn_fast_8xb16-500e_RGBT_UADET.py  2 \
+ --work-dir work_dirs/ATAV4_11_02/YOLOV8_S/RGBT_UADET_BN_ADD_LR00025 --amp
+
+
+CUDA_VISIBLE_DEVICES=0,1 ./tools/dist_train.sh  configs/ATAV4/yolov8_incep_fus/yolov8_s_dcn2_experiments.py  2  --work-dir work_dirs/ATAV4_9_10/DCN2_dcoco_lr00025_bgIOUfg_9_21/two_mask_2masklabel=1/A=0_B=0  --amp
+CUDA_VISIBLE_DEVICES=0,1 ./tools/dist_train.sh  configs/ATAV4/yolov8_incep_fus/yolov8_s_dcn2.py  2  --work-dir work_dirs/ATAV4_9_10/dcn2_bn_add/dcn2+bn_silu   --amp
+
+
+CUDA_VISIBLE_DEVICES=0,1 ./tools/dist_train.sh  configs/ATAV4/yolov8/yolov8_s_syncbn_fast_8xb16-500e_RGBT.py  2   --work-dir work_dirs/ATAV4_11_02/YOLOV8_S/rgb --amp
+
+CUDA_VISIBLE_DEVICES=2,0 ./tools/dist_train.sh  configs/ATAV4/yolov8_incep_fus/yolov8_s_incep_fus.py  2   --work-dir work_dirs/ATAV4_8_20/YOLOV8_S_BN_incep_fus135_softmax_IIII_dcoco   --amp
+
+CUDA_VISIBLE_DEVICES=1,2 ./tools/dist_train.sh  configs/ATAV4/yolov8_incep_fus/yolov8_s_incep_fus.py  2  --work-dir work_dirs/ATAV4/YOLOV8_S_ms_before_neck/lr00025_2xbs8_e100_dcoco   --amp
+
+CUDA_VISIBLE_DEVICES=0,1 ./tools/dist_train.sh  configs/ATAV4/yolov8_incep_fus/yolov8_s_dcn2_experiments.py  2  --work-dir work_dirs/ATAV4_9_10/DCN2_dcoco_lr00025_bgIOUfg/kl_d_w+kl_lineradd/w=01_xi_dot_mask  --amp
+
+CUDA_VISIBLE_DEVICES=0,1 ./tools/dist_train.sh  configs/ATAV4/yolov8_incep_fus/yolov8_s_dcn2_experiments.py  2  --work-dir work_dirs/debug  --amp
+CUDA_VISIBLE_DEVICES=2  python ./tools/train.py  configs/ATAV4/yolov8_incep_fus/yolov8_s_dcn2_experiments.py   --work-dir work_dirs/debug  --amp
+
+绑定cpu核：os.sched_setaffinity(w.pid, {2})
+
+   import psutil
+            pids = psutil.pids()
+            for pid in pids:
+                p = psutil.Process(pid)
+                print("pid-%d,pname-%s" % (pid, p.name()))
+
+
+yolov8_train：
+CUDA_VISIBLE_DEVICES=1  python ./tools/train.py configs/ATAV4/yolov8/yolov8_s_syncbn_fast_8xb16-500e_RGBT.py   --work-dir work_dirs/ATAV4/YOLOV8_S_ms/GPU_TEST    --amp
+CUDA_VISIBLE_DEVICES=2  python ./tools/train.py configs/ATAV4/yolov8/yolov8_s_syncbn_fast_8xb16-500e_RGB.py  --work-dir work_dirs/ATAV4/YOLOV8_S_ms/GPU_TEST1    --amp
+
+
+CUDA_VISIBLE_DEVICES=1,2 ./tools/dist_train.sh  configs/ATAV4/yolov8/yolov8_s_syncbn_fast_8xb16-500e_RGBT.py  2  --work-dir work_dirs/ATAV4/YOLOV8_S_ms/RGBT_lr0005_2xbs8_e100_dcoco   --amp
+
+yolov8_test:
+
+CUDA_VISIBLE_DEVICES=0  python ./tools/test.py   configs/ATAV4/yolov8/yolo_s_IR.py  work_dirs/ATAV4_11_02/YOLOV8_S/IR/best_coco_bbox_mAP_epoch_32.pth
+CUDA_VISIBLE_DEVICES=2  python ./tools/test.py  configs/ATAV4/yolov8_incep_fus/yolov8_s_dcn2_cross_attention_UADET.py \
+ work_dirs/ATAV4_11_02/YOLOV8_S/FAM+ADD_LR00025_UADET/best_coco_bbox_mAP_epoch_54.pth
+
+CUDA_VISIBLE_DEVICES=0  python ./tools/test.py   configs/ATAV4/yolov8/yolov8_s_syncbn_fast_8xb16-500e_RGB.py   work_dirs/ATAV4_11_02/YOLOV8_S/rgb/best_coco_bbox_mAP_epoch_40.pth
+
+CUDA_VISIBLE_DEVICES=3  python ./tools/test.py   configs/RGBT/yolov8/yolov8_s_syncbn_fast_8xb16-500e_RGBT_nodaau.py  work_dirs/yolov8_s/RGBT_concat_before_head/E20_LR0001_BS8/best_coco_bbox_mAP_epoch_13.pth
+
+
+yolov5:
+yov5_s_train:
+CUDA_VISIBLE_DEVICES=1  python ./tools/train.py configs/RGBT/yolov5/yolov5_s-v61_syncbn_fast_8xb16-300e_RGB.py   --work-dir work_dirs/yolov5_s_fast/RGB_noau_e30/bs8_lr001_e100   --amp
+
+CUDA_VISIBLE_DEVICES=0  python ./tools/train.py configs/RGBT/yolov5/yolov5_s-v61_syncbn_fast_8xb16-300e_RGBT.py   --work-dir work_dirs/yolov5_s_fast/concat/concat_before_head_e100_001   --amp   --resume
+CUDA_VISIBLE_DEVICES=1  python ./tools/train.py configs/RGBT/yolov5/yolov5_s-v61_syncbn_fast_8xb16-300e_RGBT.py   --work-dir work_dirs/yolov5_s_fast/concat/concat_before_head_e300_001   --amp   --resume
+CUDA_VISIBLE_DEVICES=2  python ./tools/train.py configs/RGBT/yolov5/yolov5_s-v61_syncbn_fast_8xb16-300e_RGBT.py   --work-dir work_dirs/yolov5_s_fast/concat/concat_before_head_e100_001_COCO   --amp   --resume
+
+CUDA_VISIBLE_DEVICES=1  python ./tools/train.py configs/RGBT/yolov5/yolov5_s-v61_syncbn_fast_8xb16-300e_infrared.py   --work-dir work_dirs/yolov5_s_fast/infrared_e30/bs8_lr0001_pree29   --amp
+
+yov5_s_test:
+CUDA_VISIBLE_DEVICES=0  python ./tools/test.py   configs/RGBT/yolov5/yolov5_s-v61_syncbn_8xb16-300e_RGBT.py  work_dirs/yolov5_s/RGBT_noau_e30/concat_bh_bs8_lr0001/best_coco_bbox_mAP_epoch_200.pth
+CUDA_VISIBLE_DEVICES=3  python ./tools/test.py  configs/RGBT/yolov5/yolov5_s-v61_syncbn_fast_8xb16-300e_RGBT.py work_dirs/yolov5_s_fast/concat/concat_before_head_e300_001/best_coco_bbox_mAP_epoch_65.pth
+CUDA_VISIBLE_DEVICES=2  python ./tools/test.py  configs/RGBT/yolov5/yolov5_s-v61_syncbn_fast_8xb16-300e_RGBT.py work_dirs/yolov5_s_fast/concat/concat_before_head_e100_001_COCO/epoch_100.pth
+
+yov5_n_train:
+CUDA_VISIBLE_DEVICES=2  python ./tools/train.py configs/RGBT/yolov5/yolov5_n-v61_syncbn_fast_8xb16-300e_RGB.py   --work-dir work_dirs/yolov5_n/RGB/bs16_lr001_e300   --amp
+CUDA_VISIBLE_DEVICES=0  python ./tools/train.py configs/RGBT/yolov5/yolov5_n-v61_syncbn_fast_8xb16-300e_RGBT.py   --work-dir work_dirs/yolov5_n/concat_before_head/bs8_lr001_e300_precoco   --amp   --resume
+CUDA_VISIBLE_DEVICES=2  python ./tools/train.py configs/RGBT/yolov5/yolov5_n-v61_syncbn_fast_8xb16-300e_RGBT.py   --work-dir work_dirs/yolov5_n/concat_before_head/bs8_lr001_e300_preUADET   --amp   --resume
+yov5_n_test:
+CUDA_VISIBLE_DEVICES=3  python ./tools/test.py  configs/RGBT/yolov5/yolov5_n-v61_syncbn_fast_8xb16-300e_RGBT.py  work_dirs/yolov5_n/concat_before_head/bs16_lr001_e300_precoco/best_coco_bbox_mAP_epoch_71.pth
+CUDA_VISIBLE_DEVICES=3  python ./tools/test.py  configs/RGBT/yolov5/yolov5_n-v61_syncbn_fast_8xb16-300e_RGB.py  work_dirs/yolov5_n/RGB/bs16_lr001_e300/best_coco_bbox_mAP_epoch_29.pth
+
+yolov7_tiny_train:
+CUDA_VISIBLE_DEVICES=0  python ./tools/train.py configs/RGBT/yolov7/yolov7_tiny_syncbn_fast_8x16b-300e_RGB.py   --work-dir work_dirs/yolov7_tiny_new_new/RGB/e300_lr0001_bs16   --amp
+CUDA_VISIBLE_DEVICES=1  python ./tools/train.py configs/RGBT/yolov7/yolov7_tiny_syncbn_fast_8x16b-300e_RGBT.py   --work-dir work_dirs/yolov7_tiny_new_new/RGBT_concat_head/e30_lr0001_bs8_dancoco  --amp
+CUDA_VISIBLE_DEVICES=2  python ./tools/train.py configs/RGBT/yolov7/yolov7_tiny_syncbn_fast_8x16b-300e_RGBT.py   --work-dir work_dirs/yolov7_tiny_new_new/RGBT_concat_head/e300_lr0001_bs8  --amp
+
+test:
+CUDA_VISIBLE_DEVICES=3  python ./tools/test.py  configs/RGBT/yolov7/yolov7_tiny_syncbn_fast_8x16b-300e_RGBT.py  work_dirs/yolov7_tiny_new/RGBT_concat_head/e300_lr0001_bs16/best_coco_bbox_mAP_epoch_55.pth
+
+
+UACMDet:
+CUDA_VISIBLE_DEVICES=2  python ./tools/train.py configs/UACMDET/yolov5_s-v61_syncbn_fast_8xb16-300e_UACMDET.py   --work-dir work_dirs/UACMDET/yolov5_s_fast_e200_bs8_lr0001  --amp
+CUDA_VISIBLE_DEVICES=2  python ./tools/train.py configs/UACMDET/yolov8_n_syncbn_fast_8xb16-500e_UACMDET.py   --work-dir work_dirs/UACMDET/yolov8_n_fast_e300_bs8_lr0001  --amp
+CUDA_VISIBLE_DEVICES=0  python ./tools/train.py configs/UACMDET/yolov7_tiny_syncbn_fast_8x16b-300e_UACMDET.py   --work-dir work_dirs/yolov7_tiny_new/UACMDET/e300_lr0001_bs16  --amp  --resume
+
+CUDA_VISIBLE_DEVICES=0,1,2   ./tools/dist_train.sh   configs/UACMDET/yolov5_s-v61_syncbn_8xb16-300e_UACMDET.py
+
+计算推理速度：mim run mmdet benchmark  configs/RGBT/yolov8_n_syncbn_fast_8xb16-500e_RGB_nodaau.py  --checkpoint work_dirs/yolov8_n/RGB_noau_e30/concat_bs8_lr0001_minsize0/best_coco_bbox_mAP_epoch_9.pth
+            mim run mmdet benchmark  configs/RGBT/yolov8_n_syncbn_fast_8xb16-500e_RGBT.py  --checkpoint work_dirs/yolov8_s/RGBT_e100/best_coco_bbox_mAP_epoch_55.pth
+计算训练速度：mim run mmdet analyze_logs cal_train_time   20230613_165633.json
+
+
+python tools/analysis_tools/browse_coco_json.py --data-root './data/UA_CMDet' \
+                                                --img-dir 'val/valimgr' \
+                                                --ann-file 'coco_format_annotation/DV_val_r.json' \
+                                                --disp-all
+
+  mim run mmdet analyze_logs plot_curve \
+      yolov5_s-v61_syncbn_fast_8xb16-300e_coco_20220918_084700.log.json \
+      yolov5_n-v61_syncbn_fast_8xb16-300e_coco_20220919_090739.log.json \
+      --keys bbox_mAP \
+      --legend yolov5_s yolov5_n \
+      --eval-interval 10 # 注意评估间隔必须和训练时设置的一致，否则会报错
+
+
+可形变卷积（DCN）使用：
+1、vfnet的head中：（我应该使用这个DeformConv2d类）
+导入：from mmcv.ops import DeformConv2d
+实例化：    self.vfnet_reg_refine_dconv = DeformConv2d(
+            self.feat_channels,            #输入通道
+            self.feat_channels,            #输出通道
+            self.dcn_kernel,               #卷积核大小
+            1,                             #stride
+            padding=self.dcn_pad)          #padding
+
+前向计算（使用relu激活函数）：
+reg_feat = self.relu(self.vfnet_reg_refine_dconv(reg_feat, dcn_offset))   vfnet的dcn_offset是由（l,r,t,t,u）的预测量得到
+输入特征图reg_feat:（B,输入通道数（256）,100,152）     偏移量：（B,18,100,152）    18=2×卷积核高×卷积核宽
+得到的特征图：reg_feat（B,输出通道数（256）,100,152）
+2、resnet中的DCN
+  实例化DCN：包括下面的（1）和（2）
+  self.conv2 = build_conv_layer(
+                dcn,
+                planes,
+                planes,
+                kernel_size=3,
+                stride=self.conv2_stride,
+                padding=dilation,
+                dilation=dilation,
+                bias=False)
+  （1）实例化：offset 的卷积
+   self.conv_offset = nn.Conv2d(
+            self.in_channels,   #输入特征图通道数
+            self.deform_groups * 2 * self.kernel_size[0] * self.kernel_size[1],   #输出特征图通道数=2×卷积核宽×卷积核高
+            kernel_size=self.kernel_size,
+            stride=_pair(self.stride),
+            padding=_pair(self.padding),
+            dilation=_pair(self.dilation),
+            bias=True)
+  offset 的卷积参数初始化
+   self.conv_offset.weight.data.zero_()
+   self.conv_offset.bias.data.zero_()
+ （2)前向计算
+    offset = self.conv_offset(x)    x：输入特征图，得到形变卷积偏置offset。
+    deform_conv2d(x, offset, self.weight, self.stride, self.padding,
+                             self.dilation, self.groups, self.deform_groups,
+                             False, self.im2col_step)
+3、我自己的
+（1）实例化求偏置卷积：（参考resnet50_DCN）
+
+self.conv_offset = nn.Conv2d(
+            self.in_channels,
+            self.deform_groups * 2 * self.kernel_size[0] * self.kernel_size[1],
+            kernel_size=self.kernel_size,
+            stride=_pair(self.stride),
+            padding=_pair(self.padding),
+            dilation=_pair(self.dilation),
+            bias=True)
+self.conv_offset.weight.data.zero_()
+self.conv_offset.bias.data.zero_()
+（2）实例化形变卷积：（参考vfnet）
+    self.xi_dconv = DeformConv2d(
+            self.feat_channels,            #输入通道
+            self.feat_channels,            #输出通道
+            self.dcn_kernel,               #卷积核大小
+            1,                             #stride
+            padding=self.dcn_pad)          #padding
+(3)前向计算
+   offset = self.conv_offset(cat(xi,x))
+   xi = self.relu(self.xi_dconv(xi, offset))
+
+   /home/new/anaconda3/envs/mmdet/lib/python3.7/site-packages/mmcv/runner/hooks/optimizer.py
+
+
+4、改写优化器的可训练参数
+/home/new/PycharmProjects/mmyolo/mmyolo/engine/optimizers/yolov5_optim_constructor.py
+第118行开始的my add
+
+5、mask乘以最后的分类置信度分数
+预测：
+改了：predict()
+/home/new/anaconda3/envs/mmyolo2/lib/python3.8/site-packages/mmdet/models/dense_heads/base_dense_head.py
+    175行   的 masks=None
+    204行   的 mask= masks
+
+改了后处理：
+yolov5——head：predict_by_feat：第279行    mask=None
+
+训练：
+
+paper3:
+CUDA_VISIBLE_DEVICES=0,1 ./tools/dist_train.sh  configs/ATAV4/yolov8_incep_fus/yolov8_s_dcn2.py  2  --work-dir work_dirs/paper3/FAM-2_E500_2xbs8_LR001_doublecoco/01   --amp
+

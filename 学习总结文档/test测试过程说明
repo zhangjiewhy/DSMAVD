@@ -1,0 +1,13 @@
+测试核心：
+/home/new/anaconda3/envs/mmyolo2/lib/python3.8/site-packages/mmengine/evaluator/evaluator.py的
+     第62行  def evaluate(self, size: int)
+/home/new/anaconda3/envs/mmyolo2/lib/python3.8/site-packages/mmengine/evaluator/metric.py的
+    第78行   def evaluate(self, size: int)
+/home/new/anaconda3/envs/mmyolo2/lib/python3.8/site-packages/mmdet/evaluation/metrics/coco_metric.py的
+    第382行   def compute_metrics(self, results: list) -> Dict[str, float]:
+
+
+召回率有关：
+stats[6] = _summarize(0, maxDets=self.params.maxDets[0])
+stats[7] = _summarize(0, maxDets=self.params.maxDets[1])
+stats[8] = _summarize(0, maxDets=self.params.maxDets[2])

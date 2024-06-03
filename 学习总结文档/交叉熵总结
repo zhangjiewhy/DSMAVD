@@ -1,0 +1,38 @@
+一、mmdetection中的交叉熵损失函数
+1、交叉熵函数初始化：
+    if self.use_sigmoid:
+        self.cls_criterion = binary_cross_entropy
+    elif self.use_mask:
+        self.cls_criterion = mask_cross_entropy
+    else:
+        self.cls_criterion = cross_entropy
+2、交叉熵实现核心：
+（1）不使用sigmoid
+     self.cls_criterion = cross_entropy
+   实现核心为：
+    loss = F.cross_entropy(
+        pred,
+        label,
+        weight=class_weight,
+        reduction='none',
+        ignore_index=ignore_index)
+     F.cross_entropy()用于多分类交叉熵损失，
+     对预测量进行soft_max,对标签进行one-hot编码，再计算交叉熵损失。计算交叉熵损失时，只计算one-hot编码中为1处的损失：-y(xi) * ln(p(xi))
+
+     faster——rcnn中：p
+     predict：（2048x81），label：（2048，）label中是目标类别idex
+     配置文件：loss_cls=dict(type='CrossEntropyLoss', use_sigmoid=False, loss_weight=1.0)
+
+
+ （2）使用sigmoid
+       1、 self.cls_criterion = binary_cross_entropy
+         实现核心为：
+        loss = F.binary_cross_entropy_with_logits(
+            pred,
+            label.float(),
+            pos_weight=class_weight,
+            reduction='none')
+        F.binary_cross_entropy_with_logits（）
+        二元交叉熵损失，先对预测量进行sigmoid（），再对每一类别都进行交叉熵损失。-y*ln(p(xi))-(1-y)*ln(1-p(xi))
+        2、F.binary_cross_entropy()
+           不对输入的predict进行sigmoid（）激活，

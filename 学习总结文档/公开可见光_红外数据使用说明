@@ -1,0 +1,97 @@
+pip install -v -e .
+LLVIP:
+    rgb:
+        CUDA_VISIBLE_DEVICES=0,1  ./tools/dist_train.sh   configs/LLVIP/yolov8_s_LLVIP_RGB.py    2 --work-dir  work_dirs/LLVIP_E100_LR001_BS=2X8/RGB   --amp
+    IR:
+      CUDA_VISIBLE_DEVICES=0,1  ./tools/dist_train.sh   configs/LLVIP/yolov8_s_LLVIP_IR.py    2  --work-dir  work_dirs/LLVIP_E100_LR001_BS=2X8/IR   --amp
+    RGBT:
+       CUDA_VISIBLE_DEVICES=0,1 ./tools/dist_train.sh    configs/LLVIP/yolov8_s_LLVIP_RGBT.py  2  --work-dir work_dirs/LLVIP_E100_LR001_BS/BN_ADD  --amp
+    ProbEN：
+       CUDA_VISIBLE_DEVICES=0,1 ./tools/dist_train.sh  configs/LLVIP/yolov8_s_LLVIP_ProbEN_add.py  2  --work-dir  work_dirs/LLVIP_E100_LR001_BS=2X8/E100_EP_3/objetnessloss=0.5_bn_add_ProbEN=0.1_II --amp
+M3FD:
+    rgb:
+    CUDA_VISIBLE_DEVICES=0  python ./tools/train.py  configs/M3FD/yolov8_s_M3FD_RGB.py   --work-dir work_dirs/M3FD_E100_BS=16_1024X768/RGB  --amp
+    IR:
+    CUDA_VISIBLE_DEVICES=1  python ./tools/train.py   configs/M3FD/yolov8_s_M3FD_IR.py   --work-dir work_dirs/M3FD_E100_BS=16_1024X768/IR  --amp
+    RGBT:
+    CUDA_VISIBLE_DEVICES=0,1  ./tools/dist_train.sh   configs/M3FD/yolov8_s_M3FD_RGBT.py  2  --work-dir work_dirs/M3FD_E100_BS=16_1024X768/BN_ADD  --amp
+
+FLIR_aligned:
+RGB:   CUDA_VISIBLE_DEVICES=0  python ./tools/train.py   configs/FLIR_aling/yolov8_s_FLIR_RGB.py   \
+          --work-dir work_dirs/ATAV4_STATIC_SOFT_COMPUTING/FLIR/E300_LR=0.001_bs=16/RGB_seed0  --amp   \
+          --cfg-options randomness.seed=0    randomness.deterministic=True
+IR:    CUDA_VISIBLE_DEVICES=1  python ./tools/train.py  configs/FLIR_aling/yolov8_s_FLIR_IR.py     --work-dir work_dirs/FLIR_aling_E300_LR0001_BS=16/IR --amp
+RGBT:  CUDA_VISIBLE_DEVICES=0,1  ./tools/dist_train.sh  configs/FLIR_aling/yolov8_s_FLIR_RGBT.py  2 \
+       --work-dir work_dirs/ATAV4_STATIC_SOFT_COMPUTING/FLIR/E500_LR=0.001_bs=16/add_seed0 --amp    --cfg-options randomness.seed=0
+
+新论文：ProbEN：
+  baseline:
+  bn_1x1:CUDA_VISIBLE_DEVICES=0  python ./tools/train.py   configs/FLIR_aling/yolov8_s_ProbEN_1x1.py   --work-dir work_dirs/FLIR_aling_E300_LR001_BS=16/EP1_P=1/maskloss=0.2_bn_1x1  --amp
+  bn_add:
+
+**  CUDA_VISIBLE_DEVICES=1  python ./tools/train.py   configs/FLIR_aling/yolov8_s_ProbEN_add.py  \
+   --work-dir work_dirs/FLIR_aling_E100_LR0001_BS=16/EP_1_nopost/objetnessloss=0.5_bn_add_ProbEN=0.2_II  --amp  \
+   --cfg-options randomness.seed=36811800
+
+  CTA:
+        CUDA_VISIBLE_DEVICES=0  python ./tools/train.py   configs/FLIR_aling/yolov8_s_COM_ATT.py   --work-dir work_dirs/FLIR_aling_E100_LR001_BS=16/CTA/Dmask_abs=0.2/SS=1_CS=1  --amp \
+          --cfg-options randomness.seed=36811800   randomness.diff_rank_seed=True   randomness.deterministic=True
+         CUDA_VISIBLE_DEVICES=1  python ./tools/train.py   configs/FLIR_aling/yolov8_s_COM_ATT.py   --work-dir work_dirs/FLIR_aling_E100_LR001_BS=16/CTA/Dmask_abs=0.2/SS=2_CS=1  --amp  \
+          --cfg-options randomness.seed=1440345900   randomness.diff_rank_seed=True
+
+CFIM:
+CUDA_VISIBLE_DEVICES=0,1 ./tools/dist_train.sh  configs/FLIR_aling/yolov8_s_dcn2_cross_attention.py  2  --work-dir work_dirs/FLIR_aling_E300_LR001_BS=16/v8_s/ss=2_cs=8  --amp
+CUDA_VISIBLE_DEVICES=1  python ./tools/train.py   configs/FLIR_aling/yolov8_s_dcn2_cross_attention.py   \
+ --work-dir work_dirs/ATAV4_STATIC_SOFT_COMPUTING/FLIR/E500_LR=0.01_bs=16/CFIM_seed0 --amp    --cfg-options randomness.seed=0
+
+taskset -p  1     3651
+taskset -p  2     5403
+taskset -p  4     5404
+taskset -p  8     5450
+taskset -p  10    5460
+
+
+taskset -p  20    5470
+taskset -p  40    5493
+taskset -p  80    5494
+taskset -p  100   5513
+taskset -p  200   10656
+
+taskset -p  10     28596
+taskset -p  200    28602
+
+
+VEDAI_1024:
+rgb:
+CUDA_VISIBLE_DEVICES=0  python ./tools/train.py   configs/VEDAI_1024/yolov8_s_VEDAI_RGB.py  --work-dir work_dirs/VEDAI_1024_640X640/LR001_BS=16_E300/RGB/02  --amp
+IR:
+CUDA_VISIBLE_DEVICES=1  python ./tools/train.py   configs/VEDAI_1024/yolov8_s_VEDAI_IR.py   --work-dir work_dirs/VEDAI_1024_640X640/LR001_BS=16_E300/IR/02  --amp
+
+CUDA_VISIBLE_DEVICES=0,1 ./tools/dist_train.sh   configs/VEDAI_1024/yolov8_s_dcn2_cross_attention.py  2  --work-dir work_dirs/VEDAI_1024_640X640/LR001_BS=16_E300/CFIM/SS=6_CS=1  --amp
+
+
+
+
+
+
+ATAV4:(假设性检验)
+RGB： CUBLAS_WORKSPACE_CONFIG=:4096:8  CUDA_VISIBLE_DEVICES=1  python ./tools/train.py    configs/ATAV4/yolov8/yolov8_s_syncbn_fast_8xb16-500e_RGB.py   \
+          --work-dir work_dirs/ATAV4_STATIC_SOFT_COMPUTING/ATAV4/E300_LR=0.01_bs=16/RGB  --amp   \
+           --cfg-options randomness.seed=0    randomness.deterministic=True
+     CUDA_VISIBLE_DEVICES=0  python ./tools/train.py   configs/ATAV4/yolov8/yolov8_s_syncbn_fast_8xb16-500e_RGB.py    \
+          --work-dir work_dirs/vit_head/1_seed0  --amp    --cfg-options randomness.seed=0
+RGBT
+     CUDA_VISIBLE_DEVICES=0,1 ./tools/dist_train.sh    configs/ATAV4/yolov8/yolov8_s_syncbn_fast_8xb16-500e_RGBT.py    2  \
+          --work-dir work_dirs/ATAV4_STATIC_SOFT_COMPUTING/BN_ADD/10_52438911  --amp    --cfg-options randomness.seed=52438911
+    CUBLAS_WORKSPACE_CONFIG=:4096:8  CUDA_VISIBLE_DEVICES=0  python ./tools/train.py    configs/ATAV4/yolov8/yolov8_s_syncbn_fast_8xb16-500e_RGBT.py    \
+           --work-dir work_dirs/ATAV4_STATIC_SOFT_COMPUTING/ATAV4/E500_LR=0.01_bs=16/add_seed0  --amp   \
+           --cfg-options randomness.seed=0    randomness.deterministic=True
+CFIM
+     CUBLAS_WORKSPACE_CONFIG=:4096:8  CUDA_VISIBLE_DEVICES=0,1 ./tools/dist_train.sh    configs/ATAV4/yolov8_incep_fus/yolov8_s_dcn2_cross_attention.py    2  \
+         --work-dir work_dirs/ATAV4_STATIC_SOFT_COMPUTING/ATAV4/E500_LR=0.001_bs=16/CFIM  --amp   \
+          --cfg-options randomness.seed=0    randomness.deterministic=True
+
+
+
+ CUDA_VISIBLE_DEVICES=0,1  ./tools/dist_train.sh  configs/FLIR_aling/yolov8_s_CMFIM_FLIR.py  2  \
+      --work-dir work_dirs/DEBUG --amp    --cfg-options randomness.seed=0

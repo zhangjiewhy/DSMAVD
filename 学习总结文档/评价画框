@@ -1,0 +1,12 @@
+/home/new/anaconda3/envs/mmyolo2/lib/python3.8/site-packages/mmdet/engine/hooks/visualization_hook.py
+的 def after_test_iter()108行
+实际在/home/new/anaconda3/envs/mmyolo2/lib/python3.8/site-packages/mmdet/visualization/local_visualizer.py
+第289行def add_datasample()
+  第351行gt_img_data = self._draw_instances(
+给框标注上目标类别：/home/new/anaconda3/envs/mmyolo2/lib/python3.8/site-packages/mmdet/visualization/local_visualizer.py
+    151行的self.draw_texts(
+
+
+1、是否画出gt框
+/home/new/anaconda3/envs/mmyolo2/lib/python3.8/site-packages/mmdet/visualization/local_visualizer.py
+的第307行def add_datasample(）初始化参数中的draw_gt: bool = True

@@ -1,0 +1,35 @@
+一、yolov5
+1、yolov5_n
+  （1）yolov5_n-v61_syncbn_fast_8xb16-300e_coco.py（ map：28 /\ 1.5GB）
+   继承2-（2）
+  （2）yolov5_n-p6-v62_syncbn_fast_8xb16-300e_coco.py（ map：35.9 /\ 5.8GB）
+   继承2-（3）
+2、yolov5_s
+ (1)基础版本：yolov5_s-v61_syncbn_8xb16-300e_coco.py
+    train：
+      pre_transform： LoadImageFromFile、LoadAnnotations
+      Mosaic、YOLOv5RandomAffine、mmdet.Albu、YOLOv5HSVRandomAug、mmdet.RandomFlip、mmdet.PackDetInputs
+    test：
+      LoadImageFromFile、YOLOv5KeepRatioResize、LetterResize、LoadAnnotations、mmdet.PackDetInputs
+    data_preprocessor:mmdet.DetDataPreprocessor
+ （2）fast版本：yolov5_s-v61_syncbn_fast_8xb16-300e_coco.py （map：37.7 /\ 2.7GB）
+     继承2-（1），加快训练
+     data_preprocessor：YOLOv5DetDataPreprocessor   更改
+     train_dataloader = dict(collate_fn=dict(type='yolov5_collate'))   增加
+ （3）yolov5_s-p6-v62_syncbn_fast_8xb16-300e_coco.py  （map：44.4 /\ 10.5GB）
+     继承2-（2）
+      train：与2-（1）相同，image_scale变了
+      test：与2-（1）相同，image_scale变了
+3、yolov5_m
+ （1）yolov5_m-v61_syncbn_fast_8xb16-300e_coco.py（map：45.3 /\ 5.0GB）
+    继承2-（2）
+   train： LoadImageFromFile、LoadAnnotations、Mosaic、YOLOv5RandomAffine、YOLOv5MixUp、mmdet.Albu、YOLOv5HSVRandomAug、mmdet.PackDetInputs
+   test与data_preprocessor未改写
+ （2）yolov5_m-p6-v62_syncbn_fast_8xb16-300e_coco.py（map：51.3 /\ 19.1GB）
+    继承2-（3）
+    train： LoadImageFromFile、LoadAnnotations、Mosaic、YOLOv5RandomAffine、YOLOv5MixUp、mmdet.Albu、YOLOv5HSVRandomAug、mmdet.PackDetInputs
+4、yolov5_l
+  （1）yolov5_l-v61_syncbn_fast_8xb16-300e_coco.py （map：48.8 /\ 8.1GB）
+     继承3-（1）
+   (2)yolov5_l-p6-v62_syncbn_fast_8xb16-300e_coco.py (map：53.7 /\ 30.5GB）
+      继承3-（2）

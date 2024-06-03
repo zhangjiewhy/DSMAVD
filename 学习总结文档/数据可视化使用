@@ -1,0 +1,116 @@
+一、数据可视化分析
+    显示类别和 bbox 实例个数的分布图：show_bbox_num
+    显示类别和 bbox 实例宽、高的分布图：show_bbox_wh
+    显示类别和 bbox 实例宽/高比例的分布图：show_bbox_wh_ratio
+    基于面积规则下，显示类别和 bbox 实例面积的分布图：show_bbox_area
+  1、训练集数据分布：
+  python tools/analysis_tools/dataset_analysis.py \
+   configs/RGBT/yolov8_s_syncbn_fast_8xb16-500e_RGB.py \
+   --out-dir work_dirs/dataset_analysis_RGBT/train_dataset
+二、可视化 config 配置中数据处理部分
+直接窗口可视化 config 配置中数据处理部分
+可视化图片，该命令会使得图片直接弹出显示，每张图片持续 3 秒，图片不进行保存：
+python tools/analysis_tools/browse_dataset.py \
+ configs/RGBT/yolov8_s_syncbn_fast_8xb16-500e_RGB.py  \
+ --show-interval 3
+三、训练流程
+位置：/home/new/anaconda3/envs/mmyolo2/lib/python3.8/site-packages/mmengine/runner/loops.py第111行和第112行
+ 1、数据加载及增强：                                for idx, data_batch in enumerate(self.dataloader):
+ 2、先进行model配置中的数据预处理，在进行训练                  self.run_iter(idx, data_batch)
+四、数据增强、
+查看增强后的可视化数据
+    # from PIL import Image
+       import matplotlib.pyplot as plt
+        img = results['img'][:,:,0:3]
+        img = img[:, :, :: -1]
+        img_i = results['img'][:, :, 3:6]
+        img_i = img_i[:, :, :: -1]  #BGR转RGB
+        plt.subplot(2, 2, 1)
+        plt.imshow(img)  #数据必须是HWC的顺序
+        plt.subplot(2, 2, 2)
+        plt.imshow(img_i)
+        plt.show()
+ results['img'] =np.concatenate((img,img_i), axis=2)
+
+五、yolov8_s
+（一）训练流程：/mmyolo/datasets/yolov5_coco.py的第53行：return self.pipeline(data_info) --->
+     /home/new/anaconda3/envs/mmyolo2/lib/python3.8/site-packages/mmengine/dataset/base_dataset.py的第58行：
+     for t in self.transforms:     【self.transforms中就是各种数据增强方法】
+         data = t(data)
+1、LoadImageFromFile（改）      dict(type='LoadImageFromFile', file_client_args=_base_.file_client_args)
+   位置：/home/new/anaconda3/envs/mmyolo2/lib/python3.8/site-packages/mmcv/transforms/loading.py
+2、LoadAnnotations（未改）       dict(type='LoadAnnotations', with_bbox=True)
+   位置：/home/new/PycharmProjects/mmyolo/mmyolo/datasets/transforms/transforms.py
+   的class LoadAnnotations(MMDET_LoadAnnotations):里面的def transform(）  第388行
+ 3、Mosaic
+     dict(type='Mosaic',img_scale=img_scale（640,640）,pad_val=114.0,pre_transform=pre_transform)
+   位置：/home/new/PycharmProjects/mmyolo/mmyolo/datasets/transforms/mix_img_transforms.py
+   use_cached=false   prob=1
+ 4、YOLOv5RandomAffine
+     dict(  type='YOLOv5RandomAffine',
+            max_rotate_degree=0.0,   #最大旋转度变化，默认为10
+            max_shear_degree=0.0,     最大剪切度默认为2
+            scaling_ratio_range=(1 - affine_scale, 1 + affine_scale),
+            max_aspect_ratio=max_aspect_ratio,
+            # img_scale is (width, height)
+            border=(-img_scale[0] // 2, -img_scale[1] // 2),
+            border_val=(114, 114, 114)),
+     位置：/home/new/PycharmProjects/mmyolo/mmyolo/datasets/transforms/transforms.py  的class YOLOv5RandomAffine(BaseTransform):
+     第611行 def transform(self, results: dict) -> dict:
+ 5、mmdet.Albu
+   位置：/home/new/anaconda3/envs/mmyolo2/lib/python3.8/site-packages/mmdet/datasets/transforms/transforms.py 的1354行class Albu(BaseTransform):
+   的1501行的  transform（）
+   yolov8_s中华rgbt可用的：
+    dict(type='Blur', p=0.01),
+    dict(type='MedianBlur', p=0.01),
+  6、 dict(type='YOLOv5HSVRandomAug'),   对其进行了改写,增加了对3通道红外图像的处理
+  位置：mmyolo/mmyolo/datasets/transforms/transforms.py的class YOLOv5HSVRandomAug(BaseTransform):311行
+  的 def transform(self, results: dict)：第336行
+
+  7、dict(type='mmdet.RandomFlip', prob=0.5),不需要更改，可以直接对6通道RGBT进行处理
+  （mmdet）/home/new/anaconda3/envs/mmyolo2/lib/python3.8/site-packages/mmdet/datasets/transforms/transforms.py   的class RandomFlip(）
+  继承于
+  （mmcv）/home/new/anaconda3/envs/mmyolo2/lib/python3.8/site-packages/mmcv/transforms/processing.py  的class RandomFlip(）
+
+  位置:/home/new/anaconda3/envs/mmyolo2/lib/python3.8/site-packages/mmcv/transforms/processing.py的 def transform(）
+  第1314行根据概率确定是否进行翻转： cur_dir = np.random.choice(direction_list, p=prob_list)
+  若进行翻转：进入到（mmdet）的def _flip(）第387行进行翻转
+
+  8、dict(type='mmdet.PackDetInputs',
+          meta_keys=('img_id', 'img_path', 'ori_shape', 'img_shape', 'flip',
+                   'flip_direction'))
+    功能：打包输入数据
+    具体实现：
+    （1）img = np.ascontiguousarray(img.transpose(2, 0, 1))     ##numpy用transpose(）和 np.ascontiguousarray(），tensor用permute（）和.contiguous()
+         将图像从（640,640,6）变成（6，640,640），且让存储连续
+    （2） img = to_tensor(img)
+         从numpy变为tensor
+ 9、model配置中的数据预处理：YOLOv5DetDataPreprocessor
+ 功能：先bgr转rgb，再数据归一化
+ data_preprocessor=dict(
+        type='YOLOv5DetDataPreprocessor',
+        mean=[0., 0., 0.],
+        std=[255., 255., 255.],
+        bgr_to_rgb=True),
+ 位置：/home/new/PycharmProjects/mmyolo/mmyolo/models/data_preprocessors/data_preprocessor.py
+ 训练过程中改写了第89-94行
+（二）test过程中的数据增强
+1、YOLOv5KeepRatioResize    dict(type='YOLOv5KeepRatioResize', scale=img_scale),
+位置：/home/new/PycharmProjects/mmyolo/mmyolo/datasets/transforms/transforms.py   的  第27行
+class YOLOv5KeepRatioResize(MMDET_Resize):  继承于mmdet的resize（）
+def transform(）为mmdet的class Resize(MMCV_Resize):
+实际执行为：class YOLOv5KeepRatioResize(MMDET_Resize):的 def _resize_img(）第92行
+2、LetterResize     一种resize（）
+功能：
+dict(
+        type='LetterResize',
+        scale=img_scale,
+        allow_scale_up=False,
+        pad_val=dict(img=114)),
+位置：/home/new/PycharmProjects/mmyolo/mmyolo/datasets/transforms/transforms.py    的132行  class LetterResize(MMDET_Resize):
+306行： def transform(）
+第178行：重写的class LetterResize(MMDET_Resize):  的def _resize_img(）   、、、 改写处：第249行
+
+3、数据预处理：YOLOv5DetDataPreprocessor
+位置：/home/new/PycharmProjects/mmyolo/mmyolo/models/data_preprocessors/data_preprocessor.py
+非训练模式下：forward（）走第82行，进入mmdet的forward（），再进入mmengine的forward（

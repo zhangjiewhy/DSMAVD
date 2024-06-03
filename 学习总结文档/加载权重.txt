@@ -1,0 +1,38 @@
+# 打印模型的状态字典
+print("Model's state_dict:")
+for param_tensor in model.state_dict():
+    print(param_tensor, "\t", model.state_dict()[param_tensor].size())
+
+****加载红外和可见光的双路权重：改写/mmengine/runner/runner.py  的def load_checkpoint(）函数
+
+
+missing keys in source state_dict：现有model中有这个键名keys，但是权重文件中没有（权重文件中缺失，期望权重文件中有）
+unexpected key in source state_dict:现有model中没有这个键名keys，但是权重文件中有（不期望权重文件中有）
+
+获取一个模型的可学习参数(learnable parameters)：权重和偏置
+model.parameters()
+
+1、model.named_parameters()
+named_parameters()返回的list中，每个元组（与list相似，只是数据不可修改）打包了2个内容，
+分别是layer-name和layer-param（网络层的名字和参数的迭代器）。
+2、model.parameters()
+  只返回layer-param（参数的迭代器）
+model.named_parameters()、model.parameters()、model.state_dict()请看：
+https://blog.csdn.net/u013250861/article/details/124567826
+
+3、self.children()
+  self.children()存储的是网络结构的子层模块，比如yolov8的子层模块为：
+    （1）YOLOv5DetDataPreprocessor()、
+    （2）YOLOv8CSPDarknet(具体的子层和卷积等）、
+    （3）YOLOv8PAFPN(具体的子层和卷积等）
+    （4）YOLOv8Head(具体的子层和卷积等）
+4、self.modules()   会深入到具体的卷积层
+  深度优先搜索的方式，存储了net的所有模块，包括网络模块本身及其所有后代模块
+  self.children()与self.modules()：（https://blog.csdn.net/qq_37297763/article/details/116449237）
+
+权重初始化
+一、self._init_model_weights()
+   self：RGBTDetector
+进入 /mmengine/model/base_module.py的_init_model_weights()
+   self._params_init_info：保存的初始参数信息。self.modules()遍历每个子模块，每个子模块的_params_init_info
+都会保存初始参数信息

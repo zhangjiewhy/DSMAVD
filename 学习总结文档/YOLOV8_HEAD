@@ -1,0 +1,84 @@
+一、初始化
+/home/new/PycharmProjects/mmyolo/mmyolo/models/dense_heads/yolov8_head.py
+    class  YOLOv8Head(YOLOv5Head):
+       会进入YOLOv5Head的初始化，再进入class YOLOv8HeadModule(BaseModule)
+       在class YOLOv8HeadModule(BaseModule)的的def _init_layers(self)：中搭建head网络
+
+       reg_out_channels=max((16, self.in_channels[0] // 4, self.reg_max * 4)) （s=64，回归分支中，中间两个3x3卷积的输出通道数，）
+       cls_out_channels=max(self.in_channels[0], self.num_classes)            （s=128，回归分支中，中间两个3x3卷积的输出通道数，）
+
+       回归分支：3x3（bn+silu，通道数由128/256/512变成64）————>3x3（bn+silu，通道数64变成64）————>1x1（通道数64变成64）
+       分类分支：3x3（bn+silu，通道数由128/256/512变成128）————>3x3（bn+silu，通道数128变成128）————>1x1（通道数128变成1）
+
+        from mmyolo.registry import MODELS
+        创建分类损失：self.loss_cls: nn.Module = MODELS.build(loss_cls)  loss_cls={'type': 'mmdet.CrossEntropyLoss', 'use_sigmoid': True, 'reduction': 'none', 'loss_weight': 0.5}
+        创建回归损失：self.loss_bbox: nn.Module = MODELS.build(loss_bbox)    loss_bbox={'type': 'IoULoss', 'iou_mode': 'ciou', 'bbox_format': 'xyxy', 'reduction': 'sum', 'loss_weight': 7.5, 'return_iou': False}
+        创建DFL损失：self.loss_dfl = MODELS.build(loss_dfl)
+
+        检测器的损失：losses = self.bbox_head.loss(x, batch_data_samples) 进入————>
+        yolov5_head的def loss(）
+
+        分类预测维度变化：预测量（b，类别数，h，w）--->(b，h，w,类别数）---->(b，h*w,类别数)
+        回归预测维度变化：预测量（b，4，h，w）--->(b，h，w,4）---->(b，h*w,4)
+        dfl维度变化 ：   预测量（b，h*w，4，16）--->(b，h*w,64）---->(b，h*w,64)
+二、标签分配：
+1、pos_mask, alignment_metrics, overlaps = self.get_pos_mask(）
+（1）alignment_metrics, overlaps = self.get_box_metrics(）：计算gt_box与所有预测box之间的alignment metric（论文中的t）
+           alignment_metrics：（b，num_gt,三个特征图的锚点数）   num_gt：这个batch中，一张图片的最大目标数量
+           overlaps ：（b，num_gt,三个特征图的锚点数）  gt_box与pred_box间的iou
+（2） is_in_gts = select_candidates_in_gts(priors, gt_bboxes)  锚点是否在对应目标范围内的掩码
+           is_in_gts： （b，num_gt,三个特征图的锚点数）
+（3）topk_metric = self.select_topk_candidates()  #维度(b，num_get,三个特征图锚点数) ，是个掩码tensor，表示对应gt匹配上的所有anchor，
+     与上一步的is_in_gts相比，经过了取前10的对齐准则操作
+得到的：pos_mask：(b，num_get,三个特征图锚点数)，掩码，每个gt与anchor的匹配情况
+得到的：alignment_metrics：(b，num_get,三个特征图锚点数），对齐准则（对齐度），每个gt与所有anchor的对其度
+得到的：overlaps：(b，num_get,三个特征图锚点数），每个gt与所有anchor的ciou
+
+2、(assigned_gt_idxs, fg_mask_pre_prior,pos_mask) = select_highest_overlaps（）
+   功能：一个anchor被指派给了多个gt，根据iou确定anchor指派的gt
+   assigned_gt_idxs ：   (b ,锚点数）      ：每张图片中，anchor是被匹配到哪个gt（这张图片中，anchor匹配的gt的id，id值为0-目标数-1，
+                                           有个问题：背景anchor处的值也为1，与第一个值相同，那么这个anchor是你匹配上背景还是匹配上第一个gt？）
+   fg_mask_pre_prior：   (b ,锚点数）      ：每张图片中，哪些anchor被匹配为正样本，是个掩码矩阵
+   pos_mask：          (b，num_get,锚点数） ：anchor与每个gt的匹配情况，是个掩码矩阵
+3、 assigned_labels, assigned_bboxes, assigned_scores = self.get_targets(）
+    功能：分配正负样本
+
+
+
+
+        # a1, a2 = torch.topk(
+        #     pos_mask[0,0,:],
+        #     10,
+        #     axis=-1,
+        #     largest=True)
+        # a3=pos_mask[0,0,:].cpu().numpy()
+
+展示fg和bg
+        # kld = torch.log(mean_std[bs, gt_idx, 3] / (mean_std[bs, gt_idx, 1] + 1e-9)) - 0.5
+            # kld = kld + ((mean_std[bs, gt_idx, 1]) ** 2 + (mean_std[bs, gt_idx, 0] - mean_std[bs, gt_idx, 2]) ** 2) / (
+            #             (mean_std[bs, gt_idx, 3] ** 2) * 2 + 1e-9)
+            # kl=kld/(1+kld)
+            # print(kld)
+            # print(kl)
+        import numpy as np
+        import matplotlib.pyplot as plt
+        fg1=fg.detach().cpu().unsqueeze(-1).repeat(1,1,3).numpy()
+        bg1=bg.detach().cpu().unsqueeze(-1).repeat(1, 1, 3).numpy()
+        img=img_i[bs,:,:].detach().cpu().unsqueeze(-1).repeat(1, 1, 3).numpy()
+
+        fg1 = fg1.astype(np.uint8)
+        bg1 = bg1.astype(np.uint8)
+        img=img.astype(np.uint8)
+
+        plt.figure('gt  and bg')
+        plt.subplot(1, 3, 1)
+        plt.imshow(fg1)
+        plt.subplot(1, 3, 2)
+        plt.imshow(bg1)
+        plt.subplot(1, 3, 3)
+        plt.imshow(img)
+        plt.show()
+
+
+
+

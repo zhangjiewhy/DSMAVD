@@ -1,0 +1,185 @@
+FCOS进行test时，先根据预测分类分数进行筛选（阈值为0.05），再对剩下的预测框进行NMS，最后输出的预测置信度=预测cls_score*预测centreness，
+               所以使用coco评价标准进行评价时，存在预测置信度<0.05，导致大量的误检
+       预测分类分数进行筛选：mmdetection/mmdet/models/dense_heads/base_dense_head.py的第202行
+             results = filter_scores_and_topk(scores, cfg.score_thr, nms_pre,dict(bbox_pred=bbox_pred, priors=priors))
+       NMS：mmdetection/mmdet/models/dense_heads/base_dense_head.py的第295行
+             det_bboxes, keep_idxs = batched_nms(mlvl_bboxes, mlvl_scores,mlvl_labels, cfg.nms)
+       预测置信度=预测cls_score*预测centreness:mmdetection/mmdet/models/dense_heads/base_dense_head.py的第288行
+       mlvl_scores = mlvl_scores * mlvl_score_factors
+
+mmdetection/mmdet/datasets/coco.py第462行predictions = mmcv.load(result_files[metric])得到所有的预框，可以查看数量
+   FCOS原后处理：     RGB得到6376个预测框   RGBT_concat_bh得到6060个预测框(真实2251)
+    RGB：
+     Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.441
+     Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=1000 ] = 0.785
+     Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=1000 ] = 0.453
+     Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=1000 ] = 0.294
+     Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=1000 ] = 0.520
+     Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=1000 ] = 0.568
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.522
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=300 ] = 0.522
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=1000 ] = 0.522
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=1000 ] = 0.370
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=1000 ] = 0.602
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=1000 ] = 0.664
+    RGBT_concat_bh：
+     Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.461
+     Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=1000 ] = 0.793
+     Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=1000 ] = 0.481
+     Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=1000 ] = 0.301
+     Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=1000 ] = 0.546
+     Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=1000 ] = 0.577
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.531
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=300 ] = 0.531
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=1000 ] = 0.531
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=1000 ] = 0.365
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=1000 ] = 0.620
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=1000 ] = 0.653
+
+   FCOS改进原后处理：  RGB得到2371个预测框   RGBT_concat_bh得到2325预测框(真实2251)
+    RGB：
+     Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.432
+     Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=1000 ] = 0.765
+     Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=1000 ] = 0.447
+     Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=1000 ] = 0.286
+     Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=1000 ] = 0.510
+     Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=1000 ] = 0.568
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.504
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=300 ] = 0.504
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=1000 ] = 0.504
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=1000 ] = 0.348
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=1000 ] = 0.586
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=1000 ] = 0.664
+    RGBT_concat_bh：
+     Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.453
+     Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=1000 ] = 0.778
+     Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=1000 ] = 0.475
+     Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=1000 ] = 0.291
+     Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=1000 ] = 0.538
+     Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=1000 ] = 0.577
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=100 ] = 0.516
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=300 ] = 0.516
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=1000 ] = 0.516
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=1000 ] = 0.344
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=1000 ] = 0.608
+     Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=1000 ] = 0.653
+
+
+
+COCO评价流程
+from pycocotools.coco import COCO
+from pycocotools.cocoeval import COCOeval
+import json
+from tempfile import NamedTemporaryFile
+1、准备标注json文件并下载标注信息
+anno_file = '../RGBTdata/Armored_Vehicle2/coco_format_annotation/test_vis.json'
+coco_gt = COCO(anno_file)
+2、准备检测文件，将检测结果转换成临时的json文件
+检测结果json路径                               检测结果
+result_files, tmp_dir = self.format_results(results, jsonfile_prefix)
+coco_dt = coco_gt.loadRes(result_files)  加载result.json，返回COCO类的result.json的对象
+3、评估              标注信息   预测信息  评估标准
+cocoEval = COCOeval(coco_gt, coco_dt, 'bbox')   coco_gt与coco_dt都为coco类实例化对象。通过加载json文件得到
+cocoEval.evaluate()   #计算每张图片的所设置的模型类别的结果
+cocoEval.accumulate()  #累计每张图片的评估结果
+cocoEval.summarize()   #打印结果
+print(cocoEval.stats)
+
+coco_API的方法
+一、COCO类
+    1.加载标注文件，类实例化
+    cocoGt=COCO(annFile)
+        进行__init__（）后会得到以下类成员变量
+        （0）self.dataset= json.load(annFile)。cooc格式标注文件中的信息，包括‘info’  ‘licenses’ ‘images’ ‘type’ 'annotations' 'categories'
+        （1）标注信息：self.anns[dict类型]。长度=gt数，索引与gt的id对应，里面的元素[dict类型]为gt标注。（备注：gt的id与图片的id不一样）
+        （2）图像与gt标注的对应信息：self.imgToAnns[dict类型]。长度=图片数，索引与图片的id对应，里面的元素[list类型]为当前id图片的所有gt标注。
+        （3）图像的信息：self.imgs[dict类型]。长度=图片数，索引与图片的id对应，里面的元素[dict类型]为当前id图片的信息。
+        （4）类别信息：self.cats[dict类型]。长度=类别数，标注文件的‘categories’，
+             我的数据集:0为背景，1为前景目标。
+             coco:没有0，直接从1开始，1为person
+        （5）每个gt标注的类别信息： self.catToImgs[dict类型]。长度=类别数。里面的元素[list类型]为gt标注的类别信息。
+
+    2.其他方法
+    cocoGt.getImgIds()  获得所有图像的id，有多少张图像就有多少个id  改写成了.get_img_ids()
+    coco.getCatIds() 获得所有类别的id   ———— mmdet通过mmdet/datasets/api_wrappers/coco_api.py改写成了.get_cat_ids()
+    coco_gt.loadRes（）
+二、COCOeval类
+实例化：cocoEval = COCOeval(coco_gt, coco_det, iou_type)
+    当iouType == 'segm' or iouType == 'bbox':
+       self.params.iouThrs:参与计算的iou阈值（默认10个值）
+       self.params.recThrs:recall值（默认101个值,0到1,0.01的间隔）
+       self.params.areaRng:面积区域【[0,10000平方]，[0,32平方]，[32平方,96平方]，[96平方,10000平方]】
+       self.params.areaRngLbl：面积区域标签['all', 'small', 'medium', 'large']
+    self.params.imgIds（list型）:排序后的图像id
+    self.params.catIds（list型）:排序后的类别id（我的数据集就是[0,1]）
+三、mmdetection预测结果生成.bbox.json文件中含有的预测信息有
+[
+{"image_id": 173128, "bbox": [471.9723205566406, 479.9221496582031, 36.685028076171875, 44.347503662109375], "score": 0.7162945866584778, "category_id": 1},
+{},
+{},...]
+
+COCO_API给的格式为
+[{"image_id":42,"category_id":18,"bbox":[258.15,41.29,348.26,243.78],"score":0.236},
+{},
+{},...]
+
+（1）mmdetection模型得到的预测结果  outputs【list类型，长度=图片数】，里面的元素也是list，再里面的元素是narray类型
+   outputs{list:1000}
+       0000={list:1}     #这里图片索引，这层的list长度应该等于类别数，我只有一个类别，所以为1（我猜测，没验证）
+           0={ndarry：（2,5）} 应该是一个类别的检测结果，这张图片中这个类别的检测结果为2个预测框,5表示（x1，y1，x2，y2，置信度）
+       0001={list:1}
+           0={ndarry：（1,5）}
+（2）                                        outputs     None
+result_files, tmp_dir = self.format_results(results, jsonfile_prefix)   #results就是（1）中的outputs
+              self.results2json(）#outputs生成.json文件的和核心代码，mmdetection/mmdet/datasets/coco.py中
+                转到def _det2json(）
+             需要注意：在将outputs转成.json文件时，不同类别的检测结果已经和outputs的结构相对应。outputs中虽然没有图片id信息，但是outputs中的排序与数据集的self.img_ids是对应的。
+ predictions = mmcv.load(预测的.bbox.json)
+ coco_det = coco_gt.loadRes(predictions)  得到预测结果的coco类实例化对象
+上面两句代码可以使用coco_gt.loadRes（预测的.bbox.json）代替
+（3）
+******cocoEval = COCOeval(coco_gt, coco_det, iou_type)     iou_type='bbox'
+
+ mmdet中，修改了cocoEval.params的部分参数，修改前后的区别为：
+  id经过排序                id没有经过排序
+ cocoEval.params.catIds = self.cat_ids  #若标注文件有背景的id，则COCOeval（）实例化时，cocoEval.params.catIds会拥有背景的id
+                                         mmdetection中会去除背景的id，只有前景目标的id。mmdet是没有排序的id
+ cocoEval.params.imgIds = self.img_ids  #图像id，coco_eval是排序后的id，mmdet的id是没有排序的
+
+   coco为[1, 10, 100]       mmdet为[100,300,1000]
+ cocoEval.params.maxDets = list(proposal_nums) #coco为[1, 10, 100]，mmdet改为了[100,300,1000]
+ cocoEval.params.iouThrs = iou_thrs
+（4）
+ ******cocoEval.evaluate()
+            self._prepare()  #得到self._dts和self._gts，分别为预测信息和gt信息，为字典类型，里面是按照(图片的id,类别id)进行排序
+            self.ious【dict类型】，为预测框与gt框之间的iou值，里面元素是按照(图片的id,类别id)进行排序。
+                      对于某个元素，是这张图片中该类别gt目标与预测框的IOU矩阵，ndarry类型，高度为预测框数，宽度为gt数
+            self.evalImgs ：输入一张图片id和类id以及其他属性，返回给定图片所属类所有预测框的配对信息和对应的分数
+                           返回的重要数据包括： 预测框所匹配的真实框id、真实框所匹配的预测框id
+                                             判定真实框和预测框是否满足条件的数组
+                                             预测框的分数
+（5）
+******cocoEval.accumulate()
+       self.eval = {
+            'params': p,
+            'counts': [T, R, K, A, M],     # T:iou(10) 、R：召回率（101）、K：类别 、A：目标面积大小（all，s，m，l）、M：一幅图像最多检测框数量（coco：[1,10,100],mmdet:[100,300,1000]）
+            'date': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'precision': precision,
+            'recall':   recall,
+            'scores': scores,
+        }
+（6）
+******cocoEval.summarize()
+      得到   cocoEval.stats,分别为
+      stats[0] = _summarize(1)
+            stats[1] = _summarize(1, iouThr=.5, maxDets=self.params.maxDets[2])
+            stats[2] = _summarize(1, iouThr=.75, maxDets=self.params.maxDets[2])
+            stats[3] = _summarize(1, areaRng='small', maxDets=self.params.maxDets[2])
+            stats[4] = _summarize(1, areaRng='medium', maxDets=self.params.maxDets[2])
+            stats[5] = _summarize(1, areaRng='large', maxDets=self.params.maxDets[2])
+            stats[6] = _summarize(0, maxDets=self.params.maxDets[0])
+            stats[7] = _summarize(0, maxDets=self.params.maxDets[1])
+            stats[8] = _summarize(0, maxDets=self.params.maxDets[2])
+            stats[9] = _summarize(0, areaRng='small', maxDets=self.params.maxDets[2])
+            stats[10] = _summarize(0, areaRng='medium', maxDets=self.params.maxDets[2])
+            stats[11] = _summarize(0, areaRng='large', maxDets=self.params.maxDets[2])
